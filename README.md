@@ -1,0 +1,1 @@
+Interface for the paper ["Printing-on-fabric metamaterials for self-shaping architectural models"](https://hal.archives-ouvertes.fr/hal-02925036v1)
