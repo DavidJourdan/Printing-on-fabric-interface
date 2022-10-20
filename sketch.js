@@ -6,17 +6,25 @@ var Settings = function () {
   this.young_modulus = 23000;
   this.Thickness = 0.3;
   this.Branches = 3;
-  this.Width = 1;
+  this.Width = 1.2;
   this.Size = 10;
   this.boundary = 0.7;
   this.input_name = '1'
   this.output_name = '1'
   this.output_folder = 'test';
+  this.Remove = function() {
+    for (var s of stars) {
+      if (s.selected) {
+        s.size = 0;
+        s.selected = false;
+      }
+    }
+  }
   this.Update = function () {
     for (var s of stars) {
       if (s.selected) {
         s.young_modulus = this.young_modulus;
-        s.thickness = this.Yhickness;
+        s.thickness = this.Thickness;
         s.nb_branches = this.Branches;
         s.width = this.Width;
         s.size = this.Size;
@@ -24,11 +32,11 @@ var Settings = function () {
       }
     }
   }
-  this.Unselect = function () {
-    for (var s of stars) {
-      s.selected = false;
-    }
-  }
+  // this.Unselect = function () {
+  //   for (var s of stars) {
+  //     s.selected = false;
+  //   }
+  // }
   // this.generate_command = generate_command;
   // this.generate_scad = generate_scad;
   // this.save_to_svg = function () {
@@ -128,6 +136,10 @@ var settings = new Settings();
 settings["Export to sim"] = generate_layout;
 settings["Export to IceSL"] = function() {
   let text = `
+nozzle_size = 0.4
+set_setting_value("nozzle_diameter_mm_0", nozzle_size)
+set_setting_value("z_layer_height_mm", 0.2)
+
 function star(length, thickness, width, nb_branches)
   branch = translate(0, length / 2, 0) * cube(width, length, thickness)
   branches = {}
@@ -151,7 +163,7 @@ end
 stars = {\n`;
 
   for (let s of stars) {
-    if (s.young_modulus != 0) {
+    if (s.size != 0) {
       let x = s.x * 10;
       let y = -s.y * 10;
 
@@ -196,6 +208,7 @@ var centerY = window.innerHeight / 2;
 var stars = new Array();
 var currentStar = new Star(0, 0);
 var border = new Array();
+var vertexSelected = -1;
 
 function generate_command() {
   var command = "./coupling -in ../../data/";
@@ -255,7 +268,7 @@ function generate_layout() {
   var idx = 0;
 
   for (let s of stars) {
-    if (s.young_modulus != 0) {
+    if (s.size != 0) {
       var x = s.x * 10;
       var y = s.y * 10;
 
@@ -456,8 +469,9 @@ function setup() {
   f3.add(settings, 'Width').min(0).step(0.1);
   f3.add(settings, 'Size').min(0).step(0.5);
   // f3.add(settings, 'boundary', 0, 1);
+  f3.add(settings, 'Remove');
   f3.add(settings, 'Update');
-  f3.add(settings, 'Unselect');
+  // f3.add(settings, 'Unselect');
 
   // gui.add(settings, 'generate_command');
   gui.add(settings, 'Export to sim');
@@ -472,34 +486,62 @@ function setup() {
 
 
 function draw() {
+  // white background
   background(255);
 
-  for (var s of stars) {
-    if (s.selected)
-    {
+  if(vertexSelected == -1) {
+    // draw light hexagon over selected stars
+    for (var s of stars) {
+      if (s.selected) {
+        var sx = centerX + settings.Scale * s.x;
+        var sy = centerY + settings.Scale * s.y;
+        hexagon(sx, sy, 240);
+      }
+    }
+
+    // draw darker hexagon when hovering over stars
+    for (var s of stars) {
       var sx = centerX + settings.Scale * s.x;
       var sy = centerY + settings.Scale * s.y;
-      hexagon(sx, sy, 240);
+      if (sqrt(sq(sx - mouseX) + sq(sy - mouseY)) < settings.Scale) {
+        hexagon(sx, sy, 220);
+        currentStar.thickness = s.thickness;
+        currentStar.width = s.width;
+        currentStar.young_modulus = s.young_modulus;
+        currentStar.size = s.size;
+      }
     }
   }
 
-  for (var s of stars) {
-    var sx = centerX + settings.Scale * s.x;
-    var sy = centerY + settings.Scale * s.y;
-    if (sqrt(sq(sx - mouseX) + sq(sy - mouseY)) < settings.Scale) {
-      hexagon(sx, sy, 220);
-      currentStar.thickness = s.thickness;
-      currentStar.width = s.width;
-      currentStar.young_modulus = s.young_modulus;
-      currentStar.size = s.size;
+  // draw light circle over selected boundary point
+  if(vertexSelected != -1) {
+    var vx = centerX + settings.Scale * border[vertexSelected].x;
+    var vy = centerY + settings.Scale * border[vertexSelected].y;
+    noStroke();
+    fill(240);
+    circle(vx, vy, settings.Scale);
+    stroke(0);
+  }
+
+  // draw darker circle when hovering over boundary points
+  for(var v of border) {
+    var vx = centerX + settings.Scale * v.x;
+    var vy = centerY + settings.Scale * v.y;
+    if (sqrt(sq(vx - mouseX) + sq(vy - mouseY)) < settings.Scale / 2) {
+      noStroke();
+      fill(220);
+      circle(vx, vy, settings.Scale);
+      stroke(0);
     }
   }
 
+  // draw stars
   for (var s of stars) {
-    if (s.young_modulus > 0.0)
+    if (s.size > 0.0)
       draw_star(s);
   }
 
+  // draw border
   if (settings.display_border) {
     strokeWeight(8 * settings.Scale / 100);
     let prevVec = border[border.length - 1];
@@ -516,19 +558,44 @@ function draw() {
 }
 
 function mousePressed() {
-  var elementSelected = false;
-  for (var s of stars) {
-    var sx = centerX + settings.Scale * s.x;
-    var sy = centerY + settings.Scale * s.y;
-    if (sqrt(sq(sx - mouseX) + sq(sy - mouseY)) < settings.Scale) {
-      s.selected = !s.selected;
-      elementSelected = true;
+  // select boundary point if hovering over it
+  for (let i = 0; i < border.length; i++) {
+    var vx = centerX + settings.Scale * border[i].x;
+    var vy = centerY + settings.Scale * border[i].y;
+    if (sqrt(sq(vx - mouseX) + sq(vy - mouseY)) < settings.Scale / 2) {
+      vertexSelected = i;
+      unselectStars();
+      return;
     }
   }
 
-  // if (!elementSelected) {
-  //   for (var s of stars) {
-  //     s.selected = false;
-  //   }
-  // }
+  if(vertexSelected == -1) {
+    // select star if hovering over it
+    for (var s of stars) {
+      var sx = centerX + settings.Scale * s.x;
+      var sy = centerY + settings.Scale * s.y;
+      if (sqrt(sq(sx - mouseX) + sq(sy - mouseY)) < settings.Scale) {
+        s.selected = !s.selected;
+      }
+    }
+  }
+  else {
+    // move border point to mouse position
+    border[vertexSelected].x = (mouseX - centerX) / settings.Scale;
+    border[vertexSelected].y = (mouseY - centerY) / settings.Scale;
+    vertexSelected = -1;
+  }
+}
+
+function keyPressed() {
+  if(keyCode == ESCAPE) {
+    unselectStars();
+    vertexSelected = -1;
+  }
+}
+
+function unselectStars() {
+  for(var s of stars) {
+    s.selected = false;
+  }
 }
