@@ -28,7 +28,6 @@ var Settings = function () {
         s.nb_branches = this.Branches;
         s.width = this.Width;
         s.size = this.Size;
-        s.selected = false;
       }
     }
   }
@@ -152,7 +151,7 @@ end
 function boundary(points)
   inner = {}
   outer = {}
-  shift = 1.42 *  0.2
+  shift = 1.42 *  nozzle_size
   for i =1,table.getn(points) do
     inner[i] = points[i] - shift * normalize(points[i])
     outer[i] = points[i] + shift * normalize(points[i])
