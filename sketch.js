@@ -301,6 +301,11 @@ function generate_layout() {
   for (var e of E) {
     layout += e + "\n";
   }
+  for (var s of stars) {
+    for (let i = 0; i < s.nb_branches; ++i) {
+      layout += s.thickness + " " + s.width + "\n";
+    }
+  }
 
   let element = document.createElement("a");
   element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(layout));
