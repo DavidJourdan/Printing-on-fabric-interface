@@ -37,7 +37,6 @@ var Settings = function () {
   //   }
   // }
   // this.generate_command = generate_command;
-  // this.generate_scad = generate_scad;
   // this.save_to_svg = function () {
   //   let minX = 100000, minY = 100000, maxX = -100000, maxY = -100000;
 
@@ -133,6 +132,7 @@ var Star = function (x, y) {
 
 var settings = new Settings();
 settings["Export to sim"] = generate_layout;
+settings["Export to OpenSCAD"] = generate_scad;
 settings["Export to IceSL"] = function() {
   let text = `
 nozzle_size = 0.4
@@ -320,14 +320,24 @@ function generate_layout() {
 }
 
 function generate_scad() {
-  let text = "data = [\n";
+  let text = `
+module star(length, thickness, width, nb_branches) {
+  union() { 
+    for(i=[0:nb_branches-1]) {
+        rotate(360 / nb_branches * i)
+        translate([0, length / 2, 0]) cube([width, length, thickness], center=true);
+    }
+  }
+}
+  
+data = [\n`;
 
   for (let s of stars) {
     if (s.young_modulus != 0) {
       let x = s.x * 10;
       let y = -s.y * 10;
 
-      text += "[" + x + ", " + y + ", " + s.size + ", " + s.thickness + "],\n";
+      text += "[" + x + ", " + y + ", " + s.size + ", " + s.thickness + ", " + s.width + ", " + s.nb_branches + "],\n";
     }
   }
   text += "];\nborder = [\n";
@@ -338,9 +348,20 @@ function generate_scad() {
     let y = -10 * v.y;
     text += "[" + x + ", " + y + "],\n";
   }
-  text += "];\n";
+  text += `];
 
-  let fileName = "data.txt";
+for(i=[0:len(data)-1]) {
+    translate([data[i][0], data[i][1], 0]) star(data[i][2], data[i][3], data[i][4], data[i][5]);
+}
+
+linear_extrude(height = 0.2)
+difference() {
+  offset(0.4) polygon(points = border);
+  polygon(points = border);
+}
+`;
+
+  let fileName = "layout.scad";
 
   let element = document.createElement("a");
   element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(text));
@@ -439,7 +460,7 @@ function setup() {
   createCanvas(window.innerWidth, window.innerHeight, P2D);
   // scale(100);
 
-  var gui = new dat.GUI();
+  var gui = new dat.GUI({ width: 290});
 
   var f1 = gui.addFolder('Basic');
   f1.open();
@@ -479,6 +500,7 @@ function setup() {
 
   // gui.add(settings, 'generate_command');
   gui.add(settings, 'Export to sim');
+  gui.add(settings, 'Export to OpenSCAD');
   gui.add(settings, 'Export to IceSL');
   // gui.add(settings, 'save_to_svg');
   // gui.add(settings, 'modify_border');
