@@ -287,7 +287,7 @@ function generate_layout() {
   for (let v of border) {
     let x = 10 * v.x;
     let y = -10 * v.y;
-    V.push(x + " " + y + "\n");
+    V.push(x + " " + -y + "\n");
 
     E.push(idx + i + " " + ((i + 1 == border.length) ? idx : idx + i + 1));
     i++;
